@@ -8,7 +8,6 @@
 deploy*.zip
 /src/modules/csv/services/temp
 /src/modules/admin/temp
-
 # Playwright
 node_modules/
 /test-results/
