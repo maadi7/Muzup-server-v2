@@ -1,0 +1,50 @@
+import { Arg, Ctx, Mutation, Resolver, UseMiddleware } from "type-graphql";
+import { isAuth } from "../../../middleware/auth";
+import Context from "../../../interface/context";
+import { PostInput } from "../interface/post.input";
+import PostService from "../services/post.service";
+
+@Resolver()
+export default class PostResolver {
+  constructor(private post: PostService) {
+    this.post = new PostService();
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async createPost(
+    @Arg("input") input: PostInput,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.post.createPost(input, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async deletePost(
+    @Arg("postId") postId: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.post.deletePost(postId, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async addReaction(
+    @Arg("postId") postId: string,
+    @Arg("emoji") emoji: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.post.addReaction(postId, emoji, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async removeReaction(
+    @Arg("postId") postId: string,
+    @Arg("emoji") emoji: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.post.removeReaction(postId, emoji, ctx);
+  }
+}

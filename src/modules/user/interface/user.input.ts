@@ -50,3 +50,21 @@ export class UserSignInInput {
   @Field(() => Boolean, { nullable: false, defaultValue: false })
   isArtist: boolean;
 }
+
+@InputType()
+export class UserProfileInput {
+  @Field(() => String, { nullable: true })
+  username: string;
+
+  @Field(() => String, { nullable: true })
+  firstName: string;
+
+  @Field(() => String, { nullable: true })
+  lastName: string;
+
+  @Field(() => String, { nullable: true })
+  profilePic: string;
+
+  @Field(() => String, { nullable: true })
+  bio: string;
+}

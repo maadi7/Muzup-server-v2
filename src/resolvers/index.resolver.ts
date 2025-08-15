@@ -1,4 +1,5 @@
-import OtpService from "../modules/otp/resolver/otp.resolver";
+import CommentResolver from "../modules/comment/resolver/comment.resolver";
+import PostResolver from "../modules/post/resolver/post.resolver";
 import UserResolver from "../modules/user/resolver/user.resolver";
 
-export const resolvers = [OtpService, UserResolver] as const;
+export const resolvers = [UserResolver, PostResolver, CommentResolver] as const;

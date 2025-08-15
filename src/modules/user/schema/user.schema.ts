@@ -9,6 +9,7 @@ import {
 import { Field, ID, ObjectType, registerEnumType } from "type-graphql";
 import mongoose from "mongoose";
 import { UserType } from "../interface/user.enum";
+import { FriendReqeust } from "./friend-request.schema";
 
 // ============ ENUMS ============
 registerEnumType(UserType, {
@@ -187,6 +188,14 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   instagramLink?: string;
+
+  @Field(() => String, { nullable: false })
+  @prop({ required: false })
+  profilePic: string;
+
+  @Field(() => FriendReqeust, { nullable: true, defaultValue: null })
+  @prop({ ref: "FriendRequest", required: false })
+  requestedTo: Ref<FriendReqeust>;
 
   @Field(() => Date, { nullable: true })
   @prop()

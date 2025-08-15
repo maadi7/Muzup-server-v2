@@ -2,7 +2,11 @@ import { ErrorWithProps } from "mercurius";
 import Context from "../../../interface/context";
 import { User, UserModel } from "../schema/user.schema";
 import { maskEmail } from "../../../utils/helper";
-import { UserSignInInput, UserToken } from "../interface/user.input";
+import {
+  UserProfileInput,
+  UserSignInInput,
+  UserToken,
+} from "../interface/user.input";
 import {
   CookieKeys,
   getServerCookie,
@@ -74,6 +78,7 @@ class UserService {
       throw error;
     }
   }
+
   async userSingIn(input: UserSignInInput, ctx: Context): Promise<boolean> {
     try {
       const {
@@ -136,6 +141,19 @@ class UserService {
       setServerCookie(CookieKeys.REFRESH_TOKEN, rToken, ctx);
       setServerCookie(CookieKeys.UNIQUE_ID, user._id.toString(), ctx);
 
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async editProfile(input: UserProfileInput, ctx: Context): Promise<boolean> {
+    try {
+      const user = await UserModel.findById({ _id: ctx.user });
+      if (!user) {
+        throw new ErrorWithProps("Something went wrong, please try again");
+      }
+      await UserModel.findByIdAndUpdate({ _id: ctx.user }, input);
       return true;
     } catch (error) {
       throw error;

@@ -10,7 +10,11 @@ import { isAuth } from "../../../middleware/auth";
 import Context from "../../../interface/context";
 import UserService from "../service/user.service";
 import { User } from "../schema/user.schema";
-import { UserSignInInput, UserToken } from "../interface/user.input";
+import {
+  UserProfileInput,
+  UserSignInInput,
+  UserToken,
+} from "../interface/user.input";
 
 @Resolver()
 export default class UserResolver {
@@ -47,5 +51,14 @@ export default class UserResolver {
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.user.userSingIn(input, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async editProfile(
+    @Arg("input") input: UserProfileInput,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.user.editProfile(input, ctx);
   }
 }
