@@ -16,6 +16,7 @@ import { isProduction } from "./utils/helper";
 import { logger } from "./log/logger";
 import { verifyUser } from "./utils/jwt";
 import Context from "./interface/context";
+import { SocketServer } from "./utils/socket";
 
 // Init DotEnv
 dotenv.config();
@@ -113,6 +114,7 @@ async function startServer() {
       },
     });
 
+    SocketServer.init(app.server);
     // Register routes
     app.get("/", async (req, res) => {
       res.status(200).send(`Healthcheck Working`);
@@ -123,6 +125,7 @@ async function startServer() {
     });
 
     await app.listen({ port: 4000, host: "0.0.0.0" });
+
     logger.info(`Server started on http://localhost:${process.env.PORT} 🚀`);
   } catch (error: any) {
     console.error(error.message);

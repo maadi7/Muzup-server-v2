@@ -15,6 +15,7 @@ import {
   UserSignInInput,
   UserToken,
 } from "../interface/user.input";
+import { query } from "winston";
 
 @Resolver()
 export default class UserResolver {
@@ -45,7 +46,6 @@ export default class UserResolver {
   }
 
   @Mutation(() => Boolean)
-  // @UseMiddleware([isAuth])
   async userSingIn(
     @Arg("input") input: UserSignInInput,
     @Ctx() ctx: Context
@@ -60,5 +60,38 @@ export default class UserResolver {
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.user.editProfile(input, ctx);
+  }
+
+  @Query(() => [User])
+  @UseMiddleware([isAuth])
+  async searchUsers(@Arg("query") query: string): Promise<User[]> {
+    return await this.user.searchUsers(query);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async sendRequest(
+    @Arg("id") id: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.user.sendRequest(id, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async acceptRequest(
+    @Arg("id") id: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.user.acceptRequest(id, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async blockUser(
+    @Arg("id") id: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.user.blockUser(id, ctx);
   }
 }

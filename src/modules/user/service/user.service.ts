@@ -12,7 +12,11 @@ import {
   getServerCookie,
   setServerCookie,
 } from "../../../utils/cookie";
-import { UserType } from "../interface/user.enum";
+import { RequestStatus, UserType } from "../interface/user.enum";
+import {
+  FriendReqeust,
+  FriendReqeustModal,
+} from "../schema/friend-request.schema";
 
 class UserService {
   async meUser(ctx: Context): Promise<User> {
@@ -149,11 +153,158 @@ class UserService {
 
   async editProfile(input: UserProfileInput, ctx: Context): Promise<boolean> {
     try {
-      const user = await UserModel.findById({ _id: ctx.user });
+      const user = await UserModel.findById(ctx.user);
       if (!user) {
         throw new ErrorWithProps("Something went wrong, please try again");
       }
       await UserModel.findByIdAndUpdate({ _id: ctx.user }, input);
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    try {
+      if (!query || query.trim() === "") {
+        return [];
+      }
+
+      const regex = new RegExp(query, "i"); // case-insensitive partial match
+
+      const users = await UserModel.find({
+        $or: [{ username: regex }, { firstName: regex }, { lastName: regex }],
+      })
+        .select("_id username firstName lastName profilePic type") // select only what you need
+        .lean<User[]>();
+
+      return users;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async sendRequest(id: string, ctx: Context): Promise<boolean> {
+    try {
+      if (!ctx.user) {
+        throw new ErrorWithProps("Unauthorized", { statusCode: 401 });
+      }
+
+      if (ctx.user.toString() === id.toString()) {
+        throw new ErrorWithProps("You cannot send a request to yourself", {
+          statusCode: 400,
+        });
+      }
+
+      const user = await UserModel.findById(id)
+        .select("isPrivate followings followers")
+        .lean<User>();
+
+      if (!user) {
+        throw new ErrorWithProps("User doesn't exist", { statusCode: 404 });
+      }
+
+      if (user.isPrivate) {
+        // Private profile — create a pending request
+        await FriendReqeustModal.create({
+          senderId: ctx.user,
+          recieverId: id,
+          status: RequestStatus.Pending,
+        });
+      } else {
+        // Public profile — directly follow
+        await Promise.all([
+          UserModel.updateOne(
+            { _id: ctx.user, followings: { $ne: id } }, // ensure no duplicates
+            { $push: { followings: id } }
+          ),
+          UserModel.updateOne(
+            { _id: id, followers: { $ne: ctx.user } }, // ensure no duplicates
+            { $push: { followers: ctx.user } }
+          ),
+        ]);
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async acceptRequest(id: string, ctx: Context): Promise<boolean> {
+    try {
+      if (!ctx.user) {
+        throw new ErrorWithProps("Unauthorized", { statusCode: 401 });
+      }
+
+      if (ctx.user.toString() === id.toString()) {
+        throw new ErrorWithProps("You cannot accept a request from yourself", {
+          statusCode: 400,
+        });
+      }
+
+      const sender = await UserModel.findById(id).select("_id");
+      if (!sender) {
+        throw new ErrorWithProps("User doesn't exist", { statusCode: 404 });
+      }
+
+      // Check if pending request exists
+      const request = await FriendReqeustModal.findOne({
+        senderId: id,
+        recieverId: ctx.user,
+        status: RequestStatus.Pending,
+      });
+
+      if (!request) {
+        throw new ErrorWithProps("No pending request found", {
+          statusCode: 400,
+        });
+      }
+
+      // Delete the request
+      await FriendReqeustModal.deleteOne({
+        senderId: id,
+        recieverId: ctx.user,
+        status: RequestStatus.Pending,
+      });
+
+      // Add to followers/followings
+      await Promise.all([
+        UserModel.updateOne(
+          { _id: ctx.user, followers: { $ne: id } },
+          { $push: { followers: id } }
+        ),
+        UserModel.updateOne(
+          { _id: id, followings: { $ne: ctx.user } },
+          { $push: { followings: ctx.user } }
+        ),
+      ]);
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async blockUser(id: string, ctx: Context): Promise<boolean> {
+    try {
+      const res = await UserModel.findById(id);
+
+      if (!res) {
+        throw new ErrorWithProps("User doesn't exists");
+      }
+
+      if (ctx.user.toString() === id.toString()) {
+        throw new ErrorWithProps("You cannot block yourself", {
+          statusCode: 400,
+        });
+      }
+
+      await UserModel.updateOne(
+        { _id: ctx.user, blockedByMe: { $ne: id } },
+        { $push: { blockedByMe: id } }
+      );
+
       return true;
     } catch (error) {
       throw error;

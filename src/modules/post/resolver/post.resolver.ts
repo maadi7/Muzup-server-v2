@@ -1,8 +1,16 @@
-import { Arg, Ctx, Mutation, Resolver, UseMiddleware } from "type-graphql";
+import {
+  Arg,
+  Ctx,
+  Mutation,
+  Query,
+  Resolver,
+  UseMiddleware,
+} from "type-graphql";
 import { isAuth } from "../../../middleware/auth";
 import Context from "../../../interface/context";
 import { PostInput } from "../interface/post.input";
 import PostService from "../services/post.service";
+import { Post } from "../schema/post.schema";
 
 @Resolver()
 export default class PostResolver {
@@ -46,5 +54,11 @@ export default class PostResolver {
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.post.removeReaction(postId, emoji, ctx);
+  }
+
+  @Query(() => Post)
+  @UseMiddleware([isAuth])
+  async getPostById(@Arg("id") id: string, @Ctx() ctx: Context): Promise<Post> {
+    return await this.post.getPostById(id, ctx);
   }
 }

@@ -1,48 +1,54 @@
-import { Redis } from "ioredis";
-import { logger } from "../log/logger";
-import { EnvVars } from "./environment";
+/**
+ * @fileoverview
+ * This file contains a signleton class for implementation of redis connection
+ */
 
-const redisClient =
-  EnvVars.values.REDIS_TLS === "true"
-    ? new Redis.Cluster(
-        [
-          {
-            host: EnvVars.values.REDIS_HOST,
-            port: parseInt(EnvVars.values.REDIS_PORT) ?? 6379,
-          },
-        ],
-        {
-          dnsLookup: (address, callback) => callback(null, address),
-          slotsRefreshTimeout: 2000,
-          redisOptions: {
-            maxRetriesPerRequest: null,
-            tls: {},
-          },
-        }
-      )
-    : new Redis({
-        host: EnvVars.values.REDIS_HOST,
-        port: parseInt(EnvVars.values.REDIS_PORT) ?? 6379,
-        maxRetriesPerRequest: null,
+import { Cluster, Redis } from "ioredis";
+import { EnvVars } from "./environment";
+import { logger } from "../log/logger";
+import { getErrorLogData } from "../log/utils";
+
+export class RedisClient {
+  private static instance: Cluster | Redis | null = null;
+
+  // Singleton pattern to ensure only one instance of the Redis connection exists
+  public static getInstance(): Cluster | Redis {
+    if (!RedisClient.instance) {
+      RedisClient.instance =
+        EnvVars.values.REDIS_TLS === "true"
+          ? new Redis.Cluster(
+              [
+                {
+                  host: EnvVars.values.REDIS_HOST,
+                  port: parseInt(EnvVars.values.REDIS_PORT) ?? 6379,
+                },
+              ],
+              {
+                dnsLookup: (address, callback) => callback(null, address),
+                slotsRefreshTimeout: 2000,
+                redisOptions: {
+                  maxRetriesPerRequest: null,
+                  tls: {},
+                },
+              }
+            )
+          : new Redis({
+              host: EnvVars.values.REDIS_HOST,
+              port: parseInt(EnvVars.values.REDIS_PORT) ?? 6379,
+              maxRetriesPerRequest: null,
+            });
+
+      RedisClient.instance.on("connect", () => {
+        logger.info("Redis Connected!");
       });
 
-redisClient.on("error", (err) => logger.error("Redis Client Error", err));
-redisClient.on("connect", () => logger.info("Redis Connected"));
-
-class RedisKeys {
-  // Master Keys
-  // static readonly M_STATES_KEY = "choose:states";
-  // static readonly M_CUISINES_KEY = "choose:cuisines";
-  // static readonly M_TIMEZONES_KEY = "choose:timezones";
-  // static readonly M_PERMISSIONS_KEY = "choose:userPermissions";
-  // static readonly M_CONFIGS_KEY = "choose:systemConfigs";
-  // static readonly M_ITEM_OPTIONS_KEY = "choose:itemOptions";
-  // // Exp Time in Seconds
-  // static readonly EXP_TIME = 86400 * 7; // (86400 = 1 Day) * 7 = 7 Days
-  // // Rate Limit Key
-  // static readonly RL_KEY = "rate_limit";
-  // // TOTP Secret Key
-  // static readonly TOTP_KEY = "totp_secret";
+      RedisClient.instance.on("error", (err) => {
+        logger.error(
+          "Error connection to MongoDB database",
+          getErrorLogData(err)
+        );
+      });
+    }
+    return RedisClient.instance;
+  }
 }
-
-export { redisClient, RedisKeys };
