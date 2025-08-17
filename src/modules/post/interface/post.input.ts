@@ -9,8 +9,8 @@ export class PostInput {
   @Field(() => PostType, { nullable: true })
   postType?: PostType;
 
-  @Field(() => String)
-  postUrl: string;
+  @Field(() => String, { nullable: true })
+  postUrl?: string;
 
   @Field(() => String, { nullable: true })
   waveUrl?: string;
