@@ -119,6 +119,10 @@ class PostService {
       const posts = await PostModel.find({
         user: { $in: userIds },
       })
+        .populate({
+          path: "user",
+          select: "username profilePic",
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)

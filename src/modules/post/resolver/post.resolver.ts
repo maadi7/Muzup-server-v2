@@ -61,4 +61,13 @@ export default class PostResolver {
   async getPostById(@Arg("id") id: string, @Ctx() ctx: Context): Promise<Post> {
     return await this.post.getPostById(id, ctx);
   }
+  @Query(() => [Post])
+  @UseMiddleware([isAuth])
+  async getTimelinePosts(
+    @Ctx() ctx: Context,
+    @Arg("page") page?: number,
+    @Arg("limit") limit?: number
+  ): Promise<Post[]> {
+    return await this.post.getTimelinePosts(ctx, page, limit);
+  }
 }
