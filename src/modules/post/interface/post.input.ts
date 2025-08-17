@@ -6,8 +6,8 @@ export class PostInput {
   @Field(() => String, { nullable: true })
   caption?: string;
 
-  @Field(() => PostType)
-  postType: PostType;
+  @Field(() => PostType, { nullable: true })
+  postType?: PostType;
 
   @Field(() => String)
   postUrl: string;

@@ -40,9 +40,9 @@ export class Post {
   @prop({ required: false })
   caption: string;
 
-  @Field(() => PostType, { nullable: false })
-  @prop({ required: true })
-  postType: PostType;
+  @Field(() => PostType, { nullable: true })
+  @prop({ required: false })
+  postType?: PostType;
 
   @Field(() => String, { nullable: false })
   @prop({ required: true })
