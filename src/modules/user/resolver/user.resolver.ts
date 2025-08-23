@@ -100,8 +100,10 @@ export default class UserResolver {
   @UseMiddleware([isAuth])
   async getUserProfileInfo(
     @Arg("id") id: string,
-    @Ctx() ctx: Context
+    @Ctx() ctx: Context,
+    @Arg("page") page?: number,
+    @Arg("limit") limit?: number
   ): Promise<UserProfileInfo> {
-    return await this.user.getUserProfileInfo(id, ctx);
+    return await this.user.getUserProfileInfo(id, ctx, page, limit);
   }
 }
