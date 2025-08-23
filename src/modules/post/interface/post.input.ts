@@ -1,4 +1,4 @@
-import { Field, InputType } from "type-graphql";
+import { Field, ID, InputType, ObjectType } from "type-graphql";
 import { PostType } from "./post.enum";
 
 @InputType()

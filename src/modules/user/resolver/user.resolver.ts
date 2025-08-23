@@ -11,6 +11,7 @@ import Context from "../../../interface/context";
 import UserService from "../service/user.service";
 import { User } from "../schema/user.schema";
 import {
+  UserProfileInfo,
   UserProfileInput,
   UserSignInInput,
   UserToken,
@@ -93,5 +94,14 @@ export default class UserResolver {
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.user.blockUser(id, ctx);
+  }
+
+  @Query(() => UserProfileInfo)
+  @UseMiddleware([isAuth])
+  async getUserProfileInfo(
+    @Arg("id") id: string,
+    @Ctx() ctx: Context
+  ): Promise<UserProfileInfo> {
+    return await this.user.getUserProfileInfo(id, ctx);
   }
 }

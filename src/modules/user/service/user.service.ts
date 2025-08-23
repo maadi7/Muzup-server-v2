@@ -3,6 +3,7 @@ import Context from "../../../interface/context";
 import { User, UserModel } from "../schema/user.schema";
 import { maskEmail } from "../../../utils/helper";
 import {
+  UserProfileInfo,
   UserProfileInput,
   UserSignInInput,
   UserToken,
@@ -17,6 +18,8 @@ import {
   FriendReqeust,
   FriendReqeustModal,
 } from "../schema/friend-request.schema";
+import { PostModel } from "../../post/schema/post.schema";
+import mongoose from "mongoose";
 
 class UserService {
   async meUser(ctx: Context): Promise<User> {
@@ -309,6 +312,73 @@ class UserService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async getUserProfileInfo(
+    id: string,
+    ctx: Context,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<UserProfileInfo> {
+    const user = await UserModel.findById(id).lean();
+    if (!user) throw new Error("User not found!");
+
+    const skip = (page - 1) * limit;
+
+    // Count total posts for pagination
+    const totalCount = await PostModel.countDocuments({ user: id });
+
+    // Aggregate with lookup for comments
+    const posts = await PostModel.aggregate([
+      { $match: { user: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: "comments",
+          let: { postId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$postId", "$$postId"] } } },
+            { $count: "count" },
+          ],
+          as: "commentsCount",
+        },
+      },
+      {
+        $addFields: {
+          commentsCount: {
+            $ifNull: [{ $arrayElemAt: ["$commentsCount.count", 0] }, 0],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          postUrl: 1,
+          waveUrl: 1,
+          createdAt: 1,
+          reactionsCount: { $size: "$reactions" },
+          commentsCount: 1,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    return {
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      bio: user.bio,
+      profilePic: user.profilePic,
+      followersCount: user.followers?.length || 0,
+      followingsCount: user.followings?.length || 0,
+      posts: {
+        posts,
+        totalCount,
+        page,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    };
   }
 }
 

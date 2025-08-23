@@ -21,9 +21,21 @@ export class Conversation {
   @prop({ ref: () => User, required: true })
   participants: Ref<User>[];
 
+  // store messages refs if you want, optional
   @Field(() => [Message], { nullable: true })
   @prop({ ref: () => Message, default: [] })
   messages: Ref<Message>[];
+
+  // last message info for fast inbox UI
+  @Field(() => Message, { nullable: true })
+  @prop({ ref: () => Message })
+  lastMessage?: Ref<Message>;
+
+  @prop({
+    map: Number, // specify value type
+    default: () => new Map<string, number>(),
+  })
+  unreadCount: Map<string, number>;
 
   @Field(() => Date)
   @prop()
