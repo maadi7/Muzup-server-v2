@@ -3,6 +3,11 @@ import Context from "../../../interface/context";
 import { PostInput } from "../interface/post.input";
 import { Post, PostModel } from "../schema/post.schema";
 import { User, UserModel } from "../../user/schema/user.schema";
+import { notificationQueue } from "../../notification/queue/notification.queue";
+import {
+  NotificationEntityType,
+  NotificationType,
+} from "../../notification/schema/notification.schema";
 
 class PostService {
   async createPost(input: PostInput, ctx: Context): Promise<boolean> {
@@ -39,7 +44,9 @@ class PostService {
     ctx: Context
   ): Promise<boolean> {
     try {
-      const post = await PostModel.findById(postId).populate("reactions.users");
+      const post = await PostModel.findById(postId).populate(
+        "reactions.users postUrl caption"
+      );
       if (!post) throw new ErrorWithProps("Post not found", { code: 404 });
 
       let reaction = post.reactions.find((r) => r.emoji === emoji);
@@ -55,6 +62,17 @@ class PostService {
           users: [ctx.user as any],
         });
       }
+
+      notificationQueue.add("NOTIFICATION_POST_REACTION", {
+        entityType: NotificationEntityType.POST,
+        type: NotificationType.POST_LIKE,
+        receiver: post.user.toString(),
+        sender: ctx.user,
+        entityId: postId,
+        metadata: {
+          postData: post.postUrl ?? post.caption,
+        },
+      });
 
       await post.save();
       return true;

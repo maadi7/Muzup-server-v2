@@ -8,6 +8,7 @@ import {
 } from "@typegoose/typegoose";
 import { Field, ID, ObjectType, registerEnumType } from "type-graphql";
 import { User } from "../../user/schema/user.schema";
+import { Conversation } from "../../conversation/schema/conversation.schema";
 
 // Enum for message status
 export enum MessageStatusEnum {
@@ -34,6 +35,10 @@ export class Message {
   @Field(() => String)
   @prop({ required: true })
   text: string;
+
+  @Field(() => Conversation)
+  @prop({ ref: () => Conversation, required: true })
+  conversation: Ref<Conversation>;
 
   @Field(() => MessageStatusEnum)
   @prop({

@@ -77,7 +77,7 @@ class ConversationService {
           (p) => p.toString() !== ctx.user
         ) as User;
 
-        const lastMsg = conv.messages[0] as Message;
+        const lastMsg = conv.lastMessage as Message;
 
         return {
           conversationId: conv._id.toString(),

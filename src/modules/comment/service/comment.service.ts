@@ -1,8 +1,9 @@
 import { ErrorWithProps } from "mercurius";
 import Context from "../../../interface/context";
 import { CommentInput } from "../interface/comment.input";
-import { CommentModel } from "../schema/comment.schema";
+import { Comment, CommentModel } from "../schema/comment.schema";
 import { PostModel } from "../../post/schema/post.schema";
+import { RepliesResponse } from "../interface/comment.type";
 
 class CommentService {
   async addComment(input: CommentInput, ctx: Context): Promise<boolean> {
@@ -59,6 +60,66 @@ class CommentService {
       });
 
       return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getComments(postId: string, page: number = 1): Promise<Comment[]> {
+    try {
+      const limit = 10;
+      const post = await PostModel.findById(postId);
+      if (!post) throw new ErrorWithProps("Post not found", { code: 404 });
+
+      const skip = (page - 1) * limit;
+
+      // Fetch comments (only top-level ones here)
+      const comments = await CommentModel.find({ postId, parentId: null })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("userId", "username profilePic") // fetch basic user info
+        .lean();
+
+      const totalCount = await CommentModel.countDocuments({
+        postId,
+        parentId: null,
+      });
+
+      return comments;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getReplies(
+    parentId: string,
+    page: number = 1
+  ): Promise<RepliesResponse> {
+    try {
+      const limit = 10;
+      const parentComment = await CommentModel.findById(parentId);
+      if (!parentComment) {
+        throw new ErrorWithProps("Parent comment not found", { code: 404 });
+      }
+
+      const skip = (page - 1) * limit;
+
+      // Fetch replies for that parent
+      const comments = await CommentModel.find({ parentId })
+        .sort({ createdAt: 1 }) // oldest first for replies (like IG), change to -1 if you want newest first
+        .skip(skip)
+        .limit(limit)
+        .populate("userId", "username profilePic")
+        .populate("replyToUserId", "username") // optional: show who is being replied to
+        .lean();
+
+      const totalCount = await CommentModel.countDocuments({ parentId });
+
+      return {
+        comments,
+        hasMore: skip + comments.length < totalCount,
+      };
     } catch (error) {
       throw error;
     }

@@ -7,6 +7,7 @@ import { SocketServer } from "../../../utils/socket";
 import { RedisClient } from "../../../utils/redis";
 import { ConversationModel } from "../../conversation/schema/conversation.schema";
 import { MessageModel, MessageStatusEnum } from "../schema/message.schema";
+import { messageQueue } from "../queue/message.queue";
 
 class MessageService {
   public static io = SocketServer.getIO();
@@ -18,61 +19,28 @@ class MessageService {
     ctx: Context
   ): Promise<boolean> {
     // 1. Validate receiver
-    const receiver = await UserModel.findById(receiverId);
-    if (!receiver) throw new ErrorWithProps("No user found!", { code: 404 });
+    try {
+      const receiver = await UserModel.findById(receiverId);
+      if (!receiver) throw new ErrorWithProps("No user found!", { code: 404 });
 
-    // 2. Find or create conversation
-    let conversation = await ConversationModel.findOne({
-      participants: { $all: [ctx.user, receiverId] },
-    });
-
-    if (!conversation) {
-      conversation = await ConversationModel.create({
-        participants: [ctx.user, receiverId],
-        messages: [],
-        lastMessage: null,
-        unreadCount: new Map<string, number>(),
+      // Just create the message doc (fast)
+      const message = await MessageModel.create({
+        sender: ctx.user,
+        text,
+        status: [{ user: ctx.user, state: MessageStatusEnum.SENT }],
       });
+
+      // Push job into queue
+      await messageQueue.add("sendMessageJob", {
+        messageId: message._id.toString(),
+        senderId: ctx.user,
+        receiverId,
+      });
+
+      return true;
+    } catch (error) {
+      throw new Error(error);
     }
-
-    // 3. Create the message doc
-    const message = await MessageModel.create({
-      sender: ctx.user,
-      text,
-      status: [{ user: ctx.user, state: MessageStatusEnum.SENT }],
-    });
-
-    // 4. Push only the ref (_id) into conversation
-    conversation.messages.push(message._id);
-
-    // 5. Update lastMessage & unreadCount
-    conversation.lastMessage = message._id;
-    const unread = conversation.unreadCount.get(receiverId) ?? 0;
-    conversation.unreadCount.set(receiverId, unread + 1);
-
-    // 6. Save conversation
-    await conversation.save();
-
-    // 7. Emit message via Socket.IO
-    const receiverSocketId = await MessageService.redis.get(
-      `socket:${receiverId}`
-    );
-
-    if (receiverSocketId) {
-      MessageService.io.to(receiverSocketId).emit("chatMessage", {
-        conversationId: conversation._id,
-        message, // full doc
-      });
-
-      // update delivered status
-      await MessageModel.findByIdAndUpdate(message._id, {
-        $push: {
-          status: { user: receiverId, state: MessageStatusEnum.DELIVERED },
-        },
-      });
-    }
-
-    return true;
   }
   async updateMessageStatus(
     conversationId: string,
