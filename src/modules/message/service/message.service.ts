@@ -10,9 +10,6 @@ import { MessageModel, MessageStatusEnum } from "../schema/message.schema";
 import { messageQueue } from "../queue/message.queue";
 
 class MessageService {
-  public static io = SocketServer.getIO();
-  public static redis = RedisClient.getInstance();
-
   async sendMessage(
     receiverId: string,
     text: string,
@@ -49,7 +46,8 @@ class MessageService {
     ctx: Context
   ): Promise<boolean> {
     const readerId = ctx.user; // current user opening the chat
-
+    const io = SocketServer.getIO();
+    const redis = RedisClient.getInstance();
     // 1. Fetch the message
     const messageDoc = await MessageModel.findById(messageId);
     if (!messageDoc) throw new Error("Message not found");
@@ -57,7 +55,7 @@ class MessageService {
     // 2. Only update status if the reader is the receiver
     // For 1-1, the sender is messageDoc.sender, so reader != sender
     if (readerId !== messageDoc.sender.toString()) {
-      messageDoc.status = newState;
+      messageDoc.status = newState as MessageStatusEnum;
       await messageDoc.save();
     }
 
@@ -74,11 +72,9 @@ class MessageService {
     // 4. Notify the sender via socket
     const senderId = messageDoc.sender.toString();
     if (senderId !== readerId) {
-      const senderSocketId = await MessageService.redis.get(
-        `socket:${senderId}`
-      );
+      const senderSocketId = await redis.get(`socket:${senderId}`);
       if (senderSocketId) {
-        MessageService.io.to(senderSocketId).emit("messageStatusUpdate", {
+        io.to(senderSocketId).emit("messageStatusUpdate", {
           conversationId,
           messageId,
           newState,

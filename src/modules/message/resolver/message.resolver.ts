@@ -33,7 +33,7 @@ export default class MessageResolver {
   async updateMessageStatus(
     @Arg("conversationId") conversationId: string,
     @Arg("messageId") messageId: string,
-    @Arg("newState") newState: MessageStatusEnum,
+    @Arg("newState", () => MessageStatusEnum) newState: MessageStatusEnum,
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.message.updateMessageStatus(

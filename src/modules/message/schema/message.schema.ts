@@ -1,6 +1,5 @@
 import {
   getModelForClass,
-  index,
   ModelOptions,
   prop,
   Ref,
@@ -37,7 +36,7 @@ export class Message {
   text: string;
 
   @Field(() => Conversation)
-  @prop({ ref: () => Conversation, required: true })
+  @prop({ ref: () => "Conversation", required: true })
   conversation: Ref<Conversation>;
 
   @Field(() => MessageStatusEnum)
@@ -46,7 +45,7 @@ export class Message {
     required: true,
     default: MessageStatusEnum.SENT,
   })
-  status: MessageStatusEnum; // just one status for the receiver
+  status: MessageStatusEnum;
 
   @Field(() => Date)
   @prop()

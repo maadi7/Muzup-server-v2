@@ -189,9 +189,9 @@ export class User {
   @prop({ required: false })
   instagramLink?: string;
 
-  @Field(() => String, { nullable: false })
+  @Field(() => String, { nullable: true })
   @prop({ required: false })
-  profilePic: string;
+  profilePic?: string;
 
   @Field(() => FriendReqeust, { nullable: true, defaultValue: null })
   @prop({ ref: "FriendRequest", required: false })

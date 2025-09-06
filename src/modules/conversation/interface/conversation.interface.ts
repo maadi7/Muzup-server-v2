@@ -1,6 +1,6 @@
-import { Field, InputType } from "type-graphql";
+import { Field, ObjectType } from "type-graphql";
 
-@InputType()
+@ObjectType() // 👈 instead of @InputType()
 export class SidebarChat {
   @Field(() => String, { nullable: false })
   conversationId: string;
@@ -17,6 +17,6 @@ export class SidebarChat {
   @Field(() => String, { nullable: false })
   lastMessage: string;
 
-  @Field(() => String, { nullable: false })
+  @Field(() => Date, { nullable: false }) // 👈 should be Date, not String
   lastMessageTime: Date;
 }
