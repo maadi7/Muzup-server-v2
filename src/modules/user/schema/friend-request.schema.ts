@@ -25,7 +25,7 @@ export class FriendReqeust {
 
   @Field(() => RequestStatus, { nullable: false })
   @prop({ required: true })
-  status: UserType;
+  status: RequestStatus;
 
   @Field(() => User, { nullable: false })
   @prop({ ref: "User", required: true })

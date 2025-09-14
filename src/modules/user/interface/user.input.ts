@@ -80,6 +80,9 @@ export class UserPostInfo {
   @Field(() => String, { nullable: true })
   waveUrl?: string;
 
+  @Field(() => String, { nullable: true })
+  caption?: string;
+
   @Field(() => Number)
   reactionsCount: number;
 
@@ -127,6 +130,9 @@ export class UserProfileInfo {
 
   @Field(() => Number)
   followingsCount: number;
+
+  @Field(() => Boolean)
+  isPrivate: boolean;
 
   @Field(() => PaginatedUserPosts)
   posts: PaginatedUserPosts;

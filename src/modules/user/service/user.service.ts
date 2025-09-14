@@ -36,6 +36,24 @@ class UserService {
     }
   }
 
+  async fetchFriendStatus(id: string, ctx: Context): Promise<RequestStatus> {
+    try {
+      const friendRequest = await FriendReqeustModal.findOne({
+        senderId: ctx.user,
+        recieverId: id,
+      })
+        .select("status")
+        .lean();
+
+      if (!friendRequest) {
+        return null;
+      }
+
+      return friendRequest.status;
+    } catch (error) {
+      throw error;
+    }
+  }
   async checkById(id: string, ctx: Context): Promise<boolean> {
     try {
       const user = await UserModel.findOne({ spotifyId: id })
@@ -216,6 +234,11 @@ class UserService {
         });
       } else {
         // Public profile — directly follow
+        await FriendReqeustModal.create({
+          senderId: ctx.user,
+          recieverId: id,
+          status: RequestStatus.Accepted,
+        });
         await Promise.all([
           UserModel.updateOne(
             { _id: ctx.user, followings: { $ne: id } }, // ensure no duplicates
@@ -288,6 +311,42 @@ class UserService {
       throw error;
     }
   }
+  async deleteRequest(id: string, ctx: Context): Promise<boolean> {
+    try {
+      if (ctx.user.toString() === id.toString()) {
+        throw new ErrorWithProps("You cannot unfollow yourself", {
+          statusCode: 400,
+        });
+      }
+
+      const sender = await UserModel.findById(id).select("_id");
+      if (!sender) {
+        throw new ErrorWithProps("User doesn't exist", { statusCode: 404 });
+      }
+
+      // Delete the request
+      await FriendReqeustModal.deleteOne({
+        senderId: ctx.user,
+        recieverId: id,
+      });
+
+      // remove from followers/followings
+      await Promise.all([
+        UserModel.updateOne(
+          { _id: ctx.user, followers: { $ne: id } },
+          { $pull: { followers: id } }
+        ),
+        UserModel.updateOne(
+          { _id: id, followings: { $ne: ctx.user } },
+          { $pull: { followings: ctx.user } }
+        ),
+      ]);
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
 
   async blockUser(id: string, ctx: Context): Promise<boolean> {
     try {
@@ -321,7 +380,7 @@ class UserService {
     limit: number = 10
   ): Promise<UserProfileInfo> {
     const user = await UserModel.findById(id).lean();
-    if (!user) throw new Error("User not found!");
+    if (!user) throw new ErrorWithProps("User not found!");
 
     const skip = (page - 1) * limit;
 
@@ -372,6 +431,7 @@ class UserService {
       profilePic: user.profilePic,
       followersCount: user.followers?.length || 0,
       followingsCount: user.followings?.length || 0,
+      isPrivate: user.isPrivate,
       posts: {
         posts,
         totalCount,

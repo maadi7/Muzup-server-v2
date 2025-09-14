@@ -17,6 +17,7 @@ import {
   UserToken,
 } from "../interface/user.input";
 import { query } from "winston";
+import { RequestStatus } from "../interface/user.enum";
 
 @Resolver()
 export default class UserResolver {
@@ -36,6 +37,14 @@ export default class UserResolver {
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.user.checkById(id, ctx);
+  }
+  @Query(() => RequestStatus, { nullable: true })
+  @UseMiddleware([isAuth])
+  async fetchFriendStatus(
+    @Arg("id") id: string,
+    @Ctx() ctx: Context
+  ): Promise<RequestStatus> {
+    return await this.user.fetchFriendStatus(id, ctx);
   }
 
   @Mutation(() => Boolean)
@@ -85,6 +94,15 @@ export default class UserResolver {
     @Ctx() ctx: Context
   ): Promise<boolean> {
     return await this.user.acceptRequest(id, ctx);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware([isAuth])
+  async deleteRequest(
+    @Arg("id") id: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    return await this.user.deleteRequest(id, ctx);
   }
 
   @Mutation(() => Boolean)
