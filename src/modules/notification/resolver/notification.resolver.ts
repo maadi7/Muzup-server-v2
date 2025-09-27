@@ -8,6 +8,7 @@ import {
   ObjectType,
   Field,
   Int,
+  Mutation,
 } from "type-graphql";
 import { isAuth } from "../../../middleware/auth";
 import Context from "../../../interface/context";
@@ -29,8 +30,9 @@ export default class NotificationResolver {
   @Query(() => PaginatedNotifications)
   @UseMiddleware(isAuth)
   async getAllNotifications(
-    @Arg("page", () => Int, { defaultValue: 1 }) page: number,
-    @Arg("limit", () => Int, { defaultValue: 10 }) limit: number,
+    @Arg("page", () => Int, { defaultValue: 1, nullable: true }) page: number,
+    @Arg("limit", () => Int, { defaultValue: 10, nullable: true })
+    limit: number,
     @Ctx() ctx: Context
   ): Promise<PaginatedNotifications> {
     return this.notification.getAllNotifications(page, limit, ctx);
@@ -39,9 +41,14 @@ export default class NotificationResolver {
   /**
    * Get unread notifications
    */
-  @Query(() => [Notification])
+  @Query(() => Number)
   @UseMiddleware(isAuth)
-  async getUnreadNotifications(@Ctx() ctx: Context): Promise<Notification[]> {
+  async getUnreadNotifications(@Ctx() ctx: Context): Promise<Number> {
     return this.notification.getUnreadNotifications(ctx);
+  }
+  @Mutation(() => Boolean)
+  @UseMiddleware(isAuth)
+  async markAllRead(@Ctx() ctx: Context): Promise<boolean> {
+    return this.notification.markAllRead(ctx);
   }
 }

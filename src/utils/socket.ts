@@ -1,4 +1,3 @@
-// socket.ts
 /**
  * @fileoverview
  * Singleton class for managing Socket.IO server instance
@@ -23,7 +22,32 @@ export class SocketServer {
           origin: "*", // change to your frontend domain later
         },
       });
-      const redis = RedisClient.getInstance();
+      const redis = RedisClient.getNormal(); // for set/get
+      const redisSub = RedisClient.getSubscriber(); // for subscribe
+
+      // Subscribe to channel
+      redisSub.subscribe("notifications", (err, count) => {
+        if (err) {
+          logger.error("Failed to subscribe to notifications channel", err);
+        } else {
+          logger.info(
+            `Subscribed to notifications channel (${count} total subscriptions)`
+          );
+        }
+      });
+
+      // Handle published messages
+      redisSub.on("message", (channel: string, message: string) => {
+        try {
+          if (channel === "notifications") {
+            const { receiver, event, data } = JSON.parse(message);
+            SocketServer.emitToUser(receiver, event, data);
+          }
+        } catch (err) {
+          logger.error("Failed to parse pubsub message", err);
+        }
+      });
+
       // Listen for client connections
       SocketServer.io.on("connection", (socket) => {
         logger.info(`⚡️ New client connected: ${socket.id}`);
@@ -62,8 +86,13 @@ export class SocketServer {
   /**
    * Emit event to a specific user room
    */
-  public static emitToUser(userId: string, event: string, data: any) {
+  public static async emitToUser(userId: string, event: string, data: any) {
     if (!SocketServer.io) return;
-    SocketServer.io.to(`user:${userId}`).emit(event, data);
+    const redis = RedisClient.getNormal();
+    const id = await redis.get(`socket:${userId}`);
+    console.log(id);
+    SocketServer.io.to(id).emit(event, data);
   }
 }
+//1t3J__Ka1uVRY22-AAAP
+// OYTcvlAbhmGbfUNTAAAS

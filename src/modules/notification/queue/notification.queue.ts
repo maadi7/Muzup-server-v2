@@ -6,7 +6,7 @@ import {
   NotificationType,
 } from "../schema/notification.schema";
 
-const redisClient = RedisClient.getInstance();
+const redisClient = RedisClient.getNormal();
 
 // Define queue data interface
 export interface NotificationQueueData {

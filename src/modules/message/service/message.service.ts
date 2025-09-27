@@ -47,7 +47,7 @@ class MessageService {
   ): Promise<boolean> {
     const readerId = ctx.user; // current user opening the chat
     const io = SocketServer.getIO();
-    const redis = RedisClient.getInstance();
+    const redis = RedisClient.getNormal();
     // 1. Fetch the message
     const messageDoc = await MessageModel.findById(messageId);
     if (!messageDoc) throw new Error("Message not found");

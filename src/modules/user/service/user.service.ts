@@ -8,18 +8,17 @@ import {
   UserSignInInput,
   UserToken,
 } from "../interface/user.input";
-import {
-  CookieKeys,
-  getServerCookie,
-  setServerCookie,
-} from "../../../utils/cookie";
+import { CookieKeys, setServerCookie } from "../../../utils/cookie";
 import { RequestStatus, UserType } from "../interface/user.enum";
-import {
-  FriendReqeust,
-  FriendReqeustModal,
-} from "../schema/friend-request.schema";
+import { FriendReqeustModal } from "../schema/friend-request.schema";
 import { PostModel } from "../../post/schema/post.schema";
 import mongoose from "mongoose";
+import { notificationQueue } from "../../notification/queue/notification.queue";
+import {
+  NotificationEntityType,
+  NotificationModel,
+  NotificationType,
+} from "../../notification/schema/notification.schema";
 
 class UserService {
   async meUser(ctx: Context): Promise<User> {
@@ -44,7 +43,6 @@ class UserService {
       })
         .select("status")
         .lean();
-
       if (!friendRequest) {
         return null;
       }
@@ -54,6 +52,7 @@ class UserService {
       throw error;
     }
   }
+
   async checkById(id: string, ctx: Context): Promise<boolean> {
     try {
       const user = await UserModel.findOne({ spotifyId: id })
@@ -207,15 +206,15 @@ class UserService {
 
   async sendRequest(id: string, ctx: Context): Promise<boolean> {
     try {
-      if (!ctx.user) {
-        throw new ErrorWithProps("Unauthorized", { statusCode: 401 });
-      }
-
       if (ctx.user.toString() === id.toString()) {
         throw new ErrorWithProps("You cannot send a request to yourself", {
           statusCode: 400,
         });
       }
+
+      const currentUser = await UserModel.findById(ctx.user)
+        .select("profilePic username")
+        .lean();
 
       const user = await UserModel.findById(id)
         .select("isPrivate followings followers")
@@ -225,20 +224,55 @@ class UserService {
         throw new ErrorWithProps("User doesn't exist", { statusCode: 404 });
       }
 
+      const isAlreadyRequested = await FriendReqeustModal.findOne({
+        senderId: ctx.user,
+        recieverId: id,
+      });
+
+      if (isAlreadyRequested) {
+        throw new ErrorWithProps("Already requested!", { statusCode: 404 });
+      }
+
       if (user.isPrivate) {
         // Private profile — create a pending request
-        await FriendReqeustModal.create({
-          senderId: ctx.user,
-          recieverId: id,
-          status: RequestStatus.Pending,
+        await FriendReqeustModal.findOneAndUpdate(
+          {
+            senderId: ctx.user,
+            recieverId: id,
+          },
+          {
+            $set: { status: RequestStatus.Pending },
+            $setOnInsert: {
+              senderId: ctx.user,
+              recieverId: id,
+            },
+          },
+          { upsert: true, new: true }
+        );
+
+        notificationQueue.add("NOTIFICATION_FRIEND_REQUEST", {
+          entityType: NotificationEntityType.USER,
+          type: NotificationType.FOLLOW,
+          receiver: id,
+          sender: ctx.user,
+          metadata: {
+            status: RequestStatus.Pending,
+            username: currentUser.username,
+            profilePic: currentUser.profilePic ?? null,
+          },
         });
       } else {
         // Public profile — directly follow
-        await FriendReqeustModal.create({
-          senderId: ctx.user,
-          recieverId: id,
-          status: RequestStatus.Accepted,
-        });
+        await FriendReqeustModal.findOneAndUpdate(
+          {
+            senderId: ctx.user,
+            recieverId: id,
+          },
+          {
+            set: { status: RequestStatus.Accepted },
+          },
+          { upsert: true }
+        );
         await Promise.all([
           UserModel.updateOne(
             { _id: ctx.user, followings: { $ne: id } }, // ensure no duplicates
@@ -249,6 +283,18 @@ class UserService {
             { $push: { followers: ctx.user } }
           ),
         ]);
+
+        notificationQueue.add("NOTIFICATION_FRIEND_REQUEST", {
+          entityType: NotificationEntityType.USER,
+          type: NotificationType.FOLLOW,
+          receiver: id,
+          sender: ctx.user,
+          metadata: {
+            status: RequestStatus.Accepted,
+            username: currentUser.username,
+            profilePic: currentUser.profilePic ?? null,
+          },
+        });
       }
 
       return true;
@@ -288,11 +334,16 @@ class UserService {
       }
 
       // Delete the request
-      await FriendReqeustModal.deleteOne({
-        senderId: id,
-        recieverId: ctx.user,
-        status: RequestStatus.Pending,
-      });
+      await FriendReqeustModal.findOneAndUpdate(
+        {
+          senderId: id,
+          recieverId: ctx.user,
+          status: RequestStatus.Pending,
+        },
+        {
+          status: RequestStatus.Accepted,
+        }
+      );
 
       // Add to followers/followings
       await Promise.all([
@@ -311,6 +362,7 @@ class UserService {
       throw error;
     }
   }
+
   async deleteRequest(id: string, ctx: Context): Promise<boolean> {
     try {
       if (ctx.user.toString() === id.toString()) {
@@ -332,15 +384,16 @@ class UserService {
 
       // remove from followers/followings
       await Promise.all([
-        UserModel.updateOne(
-          { _id: ctx.user, followers: { $ne: id } },
-          { $pull: { followers: id } }
-        ),
-        UserModel.updateOne(
-          { _id: id, followings: { $ne: ctx.user } },
-          { $pull: { followings: ctx.user } }
-        ),
+        UserModel.updateOne({ _id: ctx.user }, { $pull: { followings: id } }),
+        UserModel.updateOne({ _id: id }, { $pull: { followers: ctx.user } }),
       ]);
+
+      await NotificationModel.findOneAndDelete({
+        sender: ctx.user,
+        receiver: id,
+        entityType: NotificationEntityType.USER,
+        type: NotificationType.FOLLOW,
+      });
 
       return true;
     } catch (error) {
@@ -414,6 +467,7 @@ class UserService {
           postUrl: 1,
           waveUrl: 1,
           createdAt: 1,
+          caption: 1,
           reactionsCount: { $size: "$reactions" },
           commentsCount: 1,
         },

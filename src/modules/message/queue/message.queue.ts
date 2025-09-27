@@ -10,7 +10,7 @@ interface MessageQueueData {
 
 // Create a BullMQ queue for message jobs
 export const messageQueue = new Queue<MessageQueueData>(QueueNames.chatQueue, {
-  connection: RedisClient.getInstance(), // Use your Redis connection
+  connection: RedisClient.getNormal(), // Use your Redis connection
   defaultJobOptions: {
     attempts: 2, // Retry up to 2 times if sending fails
     backoff: {
