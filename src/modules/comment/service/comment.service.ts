@@ -107,7 +107,7 @@ class CommentService {
 
       // Fetch replies for that parent
       const comments = await CommentModel.find({ parentId })
-        .sort({ createdAt: 1 }) // oldest first for replies (like IG), change to -1 if you want newest first
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .populate("userId", "username profilePic")

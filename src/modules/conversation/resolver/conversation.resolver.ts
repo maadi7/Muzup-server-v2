@@ -18,12 +18,12 @@ export default class ConversationResolver {
     this.chat = new ConversationService();
   }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => String)
   @UseMiddleware([isAuth])
   async createChat(
     @Arg("id") id: string,
     @Ctx() ctx: Context
-  ): Promise<boolean> {
+  ): Promise<string> {
     return await this.chat.createChat(id, ctx);
   }
 

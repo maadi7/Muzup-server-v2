@@ -7,7 +7,7 @@ import { SidebarChat } from "../interface/conversation.interface";
 import { Message } from "../../message/schema/message.schema";
 
 class ConversationService {
-  async createChat(id: string, ctx: Context): Promise<boolean> {
+  async createChat(id: string, ctx: Context): Promise<string> {
     try {
       const user = await UserModel.findById(id);
       if (!user) {
@@ -18,18 +18,19 @@ class ConversationService {
         participants: { $all: participants, $size: participants.length },
       });
       if (existingChat) {
-        throw new ErrorWithProps("Chat Already Exists!", { code: 403 });
+        return existingChat._id.toString();
       }
 
-      await ConversationModel.create({
+      const newChat = await ConversationModel.create({
         participants: participants,
       });
 
-      return true;
+      return newChat._id.toString(); // Return the chat ID as string
     } catch (error) {
-      throw new ErrorWithProps("Failed to create post", { error });
+      throw new ErrorWithProps("Failed to create chat", { error });
     }
   }
+
   async getAllChats(ctx: Context): Promise<Conversation[]> {
     try {
       if (!ctx.user) throw new Error("User not authenticated");
@@ -45,14 +46,13 @@ class ConversationService {
       throw error;
     }
   }
+
   async getChat(id: string, ctx: Context): Promise<Conversation> {
     try {
       const chats = await ConversationModel.findOne({
         _id: id,
         participants: ctx.user,
-      })
-        .populate("participants")
-        .populate("messages");
+      }).populate("participants");
 
       return chats;
     } catch (error) {
@@ -66,16 +66,15 @@ class ConversationService {
         participants: ctx.user,
       })
         .populate("participants", "username profilePic")
-        .populate({
-          path: "messages",
-          options: { sort: { createdAt: -1 }, limit: 1 },
-        })
-        .sort({ updatedAt: -1 }); // optional: most recent first
+        .sort({ updatedAt: -1 });
 
       const sidebarChats: SidebarChat[] = conversations.map((conv) => {
         const otherUser = conv.participants.find(
-          (p) => p.toString() !== ctx.user
+          (p) => (p as any)._id.toString() !== ctx.user
         ) as User;
+
+        const userUnreadCount =
+          conv.unreadCount?.get(ctx.user.toString()) ?? null;
 
         const lastMsg = conv.lastMessage as Message;
 
@@ -86,6 +85,7 @@ class ConversationService {
           profilePic: otherUser.profilePic,
           lastMessage: lastMsg?.text || "",
           lastMessageTime: lastMsg?.createdAt || conv.updatedAt,
+          unreadCount: userUnreadCount ?? null,
         };
       });
 

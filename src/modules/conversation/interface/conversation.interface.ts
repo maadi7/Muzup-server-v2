@@ -11,12 +11,15 @@ export class SidebarChat {
   @Field(() => String, { nullable: false })
   username: string;
 
-  @Field(() => String, { nullable: false })
+  @Field(() => String, { nullable: true })
   profilePic: string;
 
-  @Field(() => String, { nullable: false })
+  @Field(() => String, { nullable: true })
   lastMessage: string;
 
-  @Field(() => Date, { nullable: false }) // 👈 should be Date, not String
+  @Field(() => Date, { nullable: true }) // 👈 should be Date, not String
   lastMessageTime: Date;
+
+  @Field(() => Number, { nullable: true }) // 👈 should be Date, not String
+  unreadCount?: number;
 }
