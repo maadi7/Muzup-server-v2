@@ -10,7 +10,7 @@ import { isAuth } from "../../../middleware/auth";
 import Context from "../../../interface/context";
 import ConversationService from "../service/conversation.service";
 import { Conversation, ConversationModel } from "../schema/conversation.schema";
-import { SidebarChat } from "../interface/conversation.interface";
+import { ChatResponse, SidebarChat } from "../interface/conversation.interface";
 
 @Resolver()
 export default class ConversationResolver {
@@ -33,13 +33,15 @@ export default class ConversationResolver {
     return await this.chat.getAllChats(ctx);
   }
 
-  @Query(() => Conversation)
+  @Query(() => ChatResponse)
   @UseMiddleware([isAuth])
   async getChat(
     @Arg("id") id: string,
-    @Ctx() ctx: Context
-  ): Promise<Conversation> {
-    return await this.chat.getChat(id, ctx);
+    @Ctx() ctx: Context,
+    @Arg("page", { defaultValue: 1 }) page: number,
+    @Arg("limit", { defaultValue: 20 }) limit: number
+  ): Promise<ChatResponse> {
+    return await this.chat.getChat(id, ctx, page, limit);
   }
 
   @Query(() => [SidebarChat])

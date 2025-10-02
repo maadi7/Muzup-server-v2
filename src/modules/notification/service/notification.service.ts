@@ -73,7 +73,7 @@ class NotificationService {
 
   async markAllRead(ctx: Context): Promise<boolean> {
     try {
-      await NotificationModel.findOneAndUpdate(
+      await NotificationModel.updateMany(
         { receiver: ctx.user },
         { isRead: true }
       );

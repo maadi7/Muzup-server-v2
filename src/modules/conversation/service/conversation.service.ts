@@ -3,8 +3,8 @@ import Context from "../../../interface/context";
 
 import { User, UserModel } from "../../user/schema/user.schema";
 import { Conversation, ConversationModel } from "../schema/conversation.schema";
-import { SidebarChat } from "../interface/conversation.interface";
-import { Message } from "../../message/schema/message.schema";
+import { ChatResponse, SidebarChat } from "../interface/conversation.interface";
+import { Message, MessageModel } from "../../message/schema/message.schema";
 
 class ConversationService {
   async createChat(id: string, ctx: Context): Promise<string> {
@@ -46,15 +46,56 @@ class ConversationService {
       throw error;
     }
   }
-
-  async getChat(id: string, ctx: Context): Promise<Conversation> {
+  async getChat(
+    id: string,
+    ctx: Context,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<ChatResponse> {
     try {
-      const chats = await ConversationModel.findOne({
+      // Ensure the conversation exists and the current user is a participant
+      const conv = await ConversationModel.findOne({
         _id: id,
         participants: ctx.user,
-      }).populate("participants");
+      }).populate("participants", "username profilePic");
 
-      return chats;
+      if (!conv) {
+        throw new ErrorWithProps("Conversation not found", { code: 404 });
+      }
+
+      // Find the "other" participant (not ctx.user)
+      const otherUser = (conv.participants as User[]).find(
+        (p) => p._id.toString() !== ctx.user.toString()
+      );
+
+      if (!otherUser) {
+        throw new ErrorWithProps("Other user not found", { code: 404 });
+      }
+
+      // Pagination for messages
+      const skip = (page - 1) * limit;
+
+      const totalMessages = await MessageModel.countDocuments({
+        conversation: id,
+      });
+
+      const messages = await MessageModel.find({ conversation: id })
+        .sort({ createdAt: -1 }) // newest first
+        .skip(skip)
+        .limit(limit)
+        .populate("sender", "username profilePic");
+
+      return {
+        conversationId: conv._id.toString(),
+        otherUser: {
+          _id: otherUser._id.toString(),
+          username: otherUser.username,
+          profilePic: otherUser.profilePic,
+        },
+        messages: messages.reverse(), // oldest → newest order
+        totalMessages,
+        hasMore: skip + messages.length < totalMessages,
+      };
     } catch (error) {
       throw error;
     }

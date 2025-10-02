@@ -36,8 +36,8 @@ export class Comment {
   replyToUserId?: Ref<User>;
 
   // The comment text itself
-  @Field(() => String)
-  @prop({ required: true })
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
   content: string;
 
   @Field(() => [User], { nullable: true })

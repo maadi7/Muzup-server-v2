@@ -98,7 +98,7 @@ class CommentService {
   ): Promise<RepliesResponse> {
     try {
       const limit = 10;
-      const parentComment = await CommentModel.findById(parentId);
+      const parentComment = await CommentModel.findOne({ parentId: parentId });
       if (!parentComment) {
         throw new ErrorWithProps("Parent comment not found", { code: 404 });
       }
@@ -111,7 +111,7 @@ class CommentService {
         .skip(skip)
         .limit(limit)
         .populate("userId", "username profilePic")
-        .populate("replyToUserId", "username") // optional: show who is being replied to
+        .populate("replyToUserId", "username")
         .lean();
 
       const totalCount = await CommentModel.countDocuments({ parentId });
